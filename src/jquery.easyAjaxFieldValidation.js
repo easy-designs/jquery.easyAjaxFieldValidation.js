@@ -55,12 +55,21 @@
  *    Used only with `ui` value of "button", this config options sets the
  *    text content of the button.
  *    Default: "Check"
+ *  - `button_inner_wrapper`/`[data-ajax-validate-button-inner-wrapper]`
+ *    If you want an element placed inside the button, supply the selector 
+ * 	  here and the script will create it
+ *    Default: none
+ *  - `button_outer_wrapper`/`[data-ajax-validate-button-outer-wrapper]`
+ *    If you want an element placed around the button, supply the selector 
+ * 	  here and the script will create it
+ *    Default: none
  *  - `callback` (no corresponding data attribute)
  *    This config option allows you to assign a callback function to perform
  *    actions when a validation response is received. The function can take
  *    two arguments. The first will be a boolean indicating whether or not
  *    the `response_success_value` indicated validity. The second will be the
  *    data recieved from the ajax call (the standard jQuery `data` argument).
+ * 	  The third argument is a jQuery object referencing the field.
  *    Default: Annoying alerts. You’ll want to configure this.
  * 
  **/
@@ -80,7 +89,9 @@
 			response_param: 'success',
 			response_success_value: 'yes',
 			button_text: 'Check',
-			callback: function( success, response ){
+			button_inner_wrapper: false,
+			button_outer_wrapper: false,
+			callback: function( success, response, $field ){
 				if ( success )
 				{
 					alert( 'The check passed!' );
@@ -121,7 +132,7 @@
 				success: function( response ){
 					var success = ( response[response_param] != UNDEFINED &&
 									response[response_param] == response_success_value );
-					config.callback( success, response );
+					config.callback( success, response, $field );
 				}
 			});
 
@@ -130,12 +141,22 @@
 		return $fields.each(function(){
 
 			var $field = $(this),
+				$parent = $field.parent(),
+				$b,
+				$i, i, i_len,
 				url = $field.data( data_attr ) || config.url,
 				// inline overrides
 				ui = $field.data( data_attr + '-ui' ) || config.ui,
 				button_text = $field.data( data_attr + '-button-text' ) || config.button_text,
+				button_inner_wrapper = $field.data( data_attr + '-button-inner-wrapper' ) || config.button_inner_wrapper,
+				button_outer_wrapper = $field.data( data_attr + '-button-outer-wrapper' ) || config.button_outer_wrapper,
 				// timer for keyup
-				timer;
+				timer,
+				// regexes
+				re_element = /([^:.#\[]+)/,
+				re_id = /\#([^:.#\[]+)/,
+				re_classes = /\.([^:.#\[]+)/g,
+				one = "$1";
 			
 			// we need a URL
 			if ( url == UNDEFINED )
@@ -151,22 +172,88 @@
 			// Button method
 			if ( ui == 'button' )
 			{
-				$button.clone()
-					.text( button_text )
-					.appendTo( $field.parent() )
-					.on( 'click keypress', function(e){
-						
-						// only look for the enter keypress
-						if ( e.type == 'keypress' &&
-							 e.which != 13 )
+				$b = $button.clone();
+
+				// Inner Wrapper
+				if ( button_inner_wrapper )
+				{
+					// create the element
+					$i = $( '<' + button_inner_wrapper.match( re_element )[0] + '/>' );
+					
+					// add ids
+					i = button_inner_wrapper.match( re_id );
+					if ( i &&
+						 i.length )
+					{
+						$i.attr( 'id', i[0].replace( re_id, one ) );
+					}
+					
+					// add classes
+					i = button_inner_wrapper.match( re_classes );
+					if ( i )
+					{
+						i_len = i.length;
+						while ( i_len-- )
 						{
-							return;
+							$i.addClass( i[i_len].replace( re_classes, one ) );
 						}
-						
-						// run the Ajax
-						check( $field, url );
-						
-					 });
+					}
+
+					// append the text
+					$i.text( button_text )
+					// add to the button
+						.appendTo( $b );
+				}
+				else
+				{
+					$b.text( button_text );
+				}
+				
+				// Outer Wrapper
+				if ( button_outer_wrapper )
+				{
+					// create the element
+					$i = $( '<' + button_outer_wrapper.match( re_element )[0] + '/>' );
+					
+					// add ids
+					i = button_outer_wrapper.match( re_id );
+					if ( i &&
+						 i.length )
+					{
+						$i.attr( 'id', i[0].replace( re_id, one ) );
+					}
+					
+					// add classes
+					i = button_outer_wrapper.match( re_classes );
+					if ( i )
+					{
+						i_len = i.length;
+						while ( i_len-- )
+						{
+							$i.addClass( i[i_len].replace( re_classes, one ) );
+						}
+					}
+					
+					$i.appendTo( $parent );
+					
+					$parent = $i;
+				}
+					
+				$b.on( 'click keypress', function(e){
+					
+					// only look for the enter keypress
+					if ( e.type == 'keypress' &&
+						 e.which != 13 )
+					{
+						return;
+					}
+					
+					// run the Ajax
+					check( $field, url );
+					
+				 })
+				.appendTo( $parent );
+				
 			}
 			else if ( ui == 'keyup' )
 			{
@@ -191,8 +278,5 @@
 		});
 		
 	};
-	
-	// Auto-init
-	$( '[data-' + data_attr + ']' ).easyAjaxFieldValidation();
 	
 }( jQuery ));
