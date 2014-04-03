@@ -257,13 +257,18 @@
 			}
 			else if ( ui == 'keyup' )
 			{
-				$field.on( 'keyup', function(){
+				$field.on( 'keyup', function(e){
 					
 					// we don’t want to run constantly, so we’ll pause a bit
 					if ( timer )
 					{
 						clearTimeout( timer );
 						timer = null;
+					}
+					// don’t let movement cause excess Ajax calls
+					if ( $.inArray( e.which, [ 9, 13, 27, 37, 38, 39, 40 ] ) > -1 )
+					{
+						return;
 					}
 					timer = setTimeout( function(){
 						
